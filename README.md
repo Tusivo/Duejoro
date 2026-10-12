@@ -12,6 +12,15 @@ On that page, download **Duejoro.exe** under **Assets** and double-click it. The
 
 > **Status: v0.1.0-alpha.1, an early preview.** Keep your own copy of anything important, and expect rough edges.
 
+![Duejoro's main window: cards for overdue, due soon and upcoming items, a list with colored status labels, and the selected item's details](docs/screenshots/overview-light.png)
+*Everything that expires or falls due, in one list, with what needs attention counted at the top. (Light theme.)*
+
+![Duejoro's item window: name, category, who is responsible, due date, how many days ahead to flag it, and how often it comes round](docs/screenshots/edit-night.png)
+*An item: what it is, who is responsible, when it falls due, and how often it comes round. (Night theme.)*
+
+![Duejoro's list filtered to the items that are due soon, with the first one's details on the right](docs/screenshots/attention-dark.png)
+*Filter to what matters: overdue, due soon or upcoming. (Dark theme.)*
+
 Duejoro is one program file for Windows. There is nothing to install, no server, no account and no subscription. Put `Duejoro.exe` in a folder and run it.
 
 ## What it does
