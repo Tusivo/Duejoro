@@ -1,0 +1,330 @@
+<Window x:Class="Duejoro.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Duejoro.App"
+        Title="Duejoro" Width="1360" Height="860" MinWidth="980" MinHeight="560"
+        WindowStartupLocation="CenterScreen" Closing="OnClosing">
+    <Window.Resources>
+        <!-- a slim menu bar: each top-level title is a small, flat header with its own drop-down -->
+        <SolidColorBrush x:Key="MenuPopupBrush" Color="#2B2B2B" />
+        <ControlTemplate x:Key="SlimHeader" TargetType="MenuItem">
+            <Grid>
+                <Border x:Name="Bd" Background="Transparent" CornerRadius="4" Padding="9,2">
+                    <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" />
+                </Border>
+                <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsSubmenuOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                    <Border Background="{DynamicResource MenuPopupBrush}" BorderBrush="#40808080" BorderThickness="1" CornerRadius="6" Padding="3" Margin="0,2,8,8" MinWidth="220">
+                        <Border.Effect><DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.35" /></Border.Effect>
+                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" KeyboardNavigation.TabNavigation="Cycle" Grid.IsSharedSizeScope="True" />
+                    </Border>
+                </Popup>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Bd" Property="Background" Value="#26808080" /></Trigger>
+                <Trigger Property="IsSubmenuOpen" Value="True"><Setter TargetName="Bd" Property="Background" Value="#33808080" /></Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+        <Style x:Key="SlimMenuItem" TargetType="MenuItem">
+            <Setter Property="Template" Value="{StaticResource SlimHeader}" />
+        </Style>
+        <!-- toolbar buttons: no box at rest, just the icon; a soft tint on hover -->
+        <Style x:Key="Tb" TargetType="Button">
+            <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" />
+            <Setter Property="Padding" Value="7,5" />
+            <Setter Property="Margin" Value="1,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="#26808080" /></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Background" Value="#40808080" /></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CellText" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <!-- the four summary cards above the list -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="#14808080" />
+            <Setter Property="BorderBrush" Value="#33808080" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </Window.Resources>
+    <Window.InputBindings>
+        <KeyBinding Key="N" Modifiers="Ctrl" Command="{x:Static ApplicationCommands.New}" />
+        <KeyBinding Key="F" Modifiers="Ctrl" Command="{x:Static ApplicationCommands.Find}" />
+        <KeyBinding Key="Z" Modifiers="Ctrl" Command="{x:Static ApplicationCommands.Undo}" />
+        <KeyBinding Key="Y" Modifiers="Ctrl" Command="{x:Static ApplicationCommands.Redo}" />
+    </Window.InputBindings>
+    <Window.CommandBindings>
+        <CommandBinding Command="{x:Static ApplicationCommands.New}" Executed="OnNew" />
+        <CommandBinding Command="{x:Static ApplicationCommands.Find}" Executed="OnFocusSearch" />
+        <CommandBinding Command="{x:Static ApplicationCommands.Undo}" Executed="OnUndo" />
+        <CommandBinding Command="{x:Static ApplicationCommands.Redo}" Executed="OnRedo" />
+    </Window.CommandBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- menus and the always-visible toolbar -->
+        <StackPanel Grid.Row="0">
+            <DockPanel x:Name="MenuRow" LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,10,2">
+                    <TextBlock Text="Theme" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.8" />
+                    <ComboBox x:Name="ThemeBox" Width="92" Height="22" MinHeight="0" Padding="8,0" VerticalContentAlignment="Center" ToolTip="Colors of the window" SelectionChanged="OnThemePicked">
+                        <ComboBoxItem Content="Dark" Tag="dark" />
+                        <ComboBoxItem Content="Light" Tag="light" />
+                        <ComboBoxItem Content="Night" Tag="night" />
+                    </ComboBox>
+                </StackPanel>
+                <Menu x:Name="MainMenu" Background="Transparent" ItemContainerStyle="{StaticResource SlimMenuItem}" VerticalAlignment="Center">
+                    <MenuItem Header="_File">
+                        <MenuItem Header="_New Item..." InputGestureText="Ctrl+N" Click="OnNew" />
+                        <Separator />
+                        <MenuItem Header="_Import from a Spreadsheet (CSV)..." Click="OnImport" />
+                        <MenuItem Header="Export to a _Spreadsheet (CSV)..." Click="OnExportCsv" />
+                        <MenuItem Header="Export to a _Calendar File (.ics)..." Click="OnExportCalendar" />
+                        <Separator />
+                        <MenuItem Header="Open the _Data Folder" Click="OnOpenDataFolder" />
+                        <Separator />
+                        <MenuItem Header="E_xit" Click="OnExit" />
+                    </MenuItem>
+                    <MenuItem Header="_Edit">
+                        <MenuItem x:Name="UndoItem" Header="_Undo" InputGestureText="Ctrl+Z" Click="OnUndo" />
+                        <MenuItem x:Name="RedoItem" Header="_Redo" InputGestureText="Ctrl+Y" Click="OnRedo" />
+                        <Separator />
+                        <MenuItem Header="_Edit Item..." InputGestureText="Enter" Click="OnEdit" />
+                        <MenuItem Header="Mark as _Renewed..." Click="OnRenew" />
+                        <MenuItem Header="Put Away as _Done" Click="OnToggleDone" />
+                        <MenuItem Header="_Attach a File..." Click="OnAttach" />
+                        <Separator />
+                        <MenuItem Header="_Delete Item" InputGestureText="Delete" Click="OnDelete" />
+                    </MenuItem>
+                    <MenuItem Header="_View">
+                        <MenuItem x:Name="ShowDoneItem" Header="Show _Done Items" IsCheckable="True" Click="OnShowDone" />
+                        <Separator />
+                        <MenuItem Header="_Find" InputGestureText="Ctrl+F" Click="OnFocusSearch" />
+                        <MenuItem Header="_Clear Filters" Click="OnClearFilters" />
+                        <Separator />
+                        <MenuItem x:Name="TrayItem" Header="Stay in the _Tray and Remind Me" IsCheckable="True" Click="OnTrayToggle" />
+                    </MenuItem>
+                    <MenuItem Header="_Help">
+                        <MenuItem Header="_Keyboard Shortcuts" Click="OnShortcuts" />
+                        <MenuItem Header="_Check for Updates..." Click="OnCheckUpdates" />
+                        <MenuItem Header="_About Duejoro" Click="OnAbout" />
+                        <Separator />
+                        <MenuItem Header="Report a _Problem" Click="OnReportProblem" />
+                        <MenuItem Header="Request a _Feature" Click="OnRequestFeature" />
+                        <MenuItem Header="_Support the Project" Click="OnSupport" />
+                    </MenuItem>
+                </Menu>
+            </DockPanel>
+
+            <Grid>
+                <ToolBarTray x:Name="Tray" IsLocked="True">
+                    <ToolBar Band="0" BandIndex="0">
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon New}" Click="OnNew" ToolTip="New item (Ctrl+N)" />
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon Edit}" Click="OnEdit" ToolTip="Edit the chosen item" />
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon Renew}" Click="OnRenew" ToolTip="Mark the chosen item as renewed" />
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon Check}" Click="OnToggleDone" ToolTip="Put the chosen item away as done (or bring it back)" />
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon Attach}" Click="OnAttach" ToolTip="Attach a file (a scan of the license, the policy, the contract)" />
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon Delete}" Click="OnDelete" ToolTip="Delete the chosen item" />
+                        <Separator />
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon Undo}" Click="OnUndo" ToolTip="Undo (Ctrl+Z)" />
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon Redo}" Click="OnRedo" ToolTip="Redo (Ctrl+Y)" />
+                        <Separator />
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon Import}" Click="OnImport" ToolTip="Import from a spreadsheet (CSV)" />
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon Export}" Click="OnExportCsv" ToolTip="Export to a spreadsheet (CSV)" />
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon Calendar}" Click="OnExportCalendar" ToolTip="Export to a calendar file (.ics) for Outlook, Google Calendar or Apple Calendar" />
+                    </ToolBar>
+                </ToolBarTray>
+                <Button x:Name="ShortcutsButton" Style="{StaticResource Tb}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,10,0"
+                        Click="OnShortcuts" ToolTip="See the keyboard shortcuts">
+                    <StackPanel Orientation="Horizontal">
+                        <ContentControl Content="{local:Icon Keyboard}" Margin="0,0,6,0" />
+                        <TextBlock Text="Keyboard Shortcuts" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </StackPanel>
+
+        <!-- the records -->
+        <Grid Grid.Row="1" Margin="14,12,14,10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- summary cards: click one to show only those -->
+            <StackPanel x:Name="Cards" Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                <Border x:Name="CardOverdue" Style="{StaticResource Card}" MouseLeftButtonUp="OnCardOverdue" ToolTip="Show only what is overdue">
+                    <StackPanel>
+                        <TextBlock x:Name="CountOverdue" Text="0" FontSize="28" FontWeight="SemiBold" Foreground="#E5484D" />
+                        <TextBlock Text="Overdue" Opacity="0.8" />
+                    </StackPanel>
+                </Border>
+                <Border x:Name="CardSoon" Style="{StaticResource Card}" MouseLeftButtonUp="OnCardSoon" ToolTip="Show only what is due soon">
+                    <StackPanel>
+                        <TextBlock x:Name="CountSoon" Text="0" FontSize="28" FontWeight="SemiBold" Foreground="#F59E0B" />
+                        <TextBlock Text="Due soon" Opacity="0.8" />
+                    </StackPanel>
+                </Border>
+                <Border x:Name="CardUpcoming" Style="{StaticResource Card}" MouseLeftButtonUp="OnCardUpcoming" ToolTip="Show only what is further away">
+                    <StackPanel>
+                        <TextBlock x:Name="CountUpcoming" Text="0" FontSize="28" FontWeight="SemiBold" Foreground="#30A46C" />
+                        <TextBlock Text="Upcoming" Opacity="0.8" />
+                    </StackPanel>
+                </Border>
+                <Border x:Name="CardAll" Style="{StaticResource Card}" MouseLeftButtonUp="OnCardAll" ToolTip="Show everything">
+                    <StackPanel>
+                        <TextBlock x:Name="CountAll" Text="0" FontSize="28" FontWeight="SemiBold" />
+                        <TextBlock Text="All active" Opacity="0.8" />
+                    </StackPanel>
+                </Border>
+                <TextBlock x:Name="CostSummary" VerticalAlignment="Center" Margin="6,0,0,0" Opacity="0.8" TextWrapping="Wrap" MaxWidth="460" />
+            </StackPanel>
+
+            <!-- search and filters -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+                <TextBlock Text="Find" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.8" />
+                <TextBox x:Name="SearchBox" Width="260" TextChanged="OnFilterChanged" ToolTip="Search names, categories, owners, numbers and notes (Ctrl+F)" />
+                <TextBlock Text="Category" VerticalAlignment="Center" Margin="18,0,8,0" Opacity="0.8" />
+                <ComboBox x:Name="CategoryBox" Width="190" SelectionChanged="OnFilterChanged" />
+                <TextBlock Text="Show" VerticalAlignment="Center" Margin="18,0,8,0" Opacity="0.8" />
+                <ComboBox x:Name="StatusBox" Width="190" SelectionChanged="OnFilterChanged" />
+                <TextBlock x:Name="FilterNote" VerticalAlignment="Center" Margin="18,0,0,0" Opacity="0.7" />
+            </StackPanel>
+
+            <!-- the list and the details of the chosen item -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="360" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="400" MinWidth="280" />
+                </Grid.ColumnDefinitions>
+
+                <DataGrid x:Name="List" Grid.Column="0" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionUnit="FullRow"
+                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" CanUserAddRows="False" CanUserResizeRows="False"
+                          SelectionChanged="OnListSelected" MouseDoubleClick="OnListDoubleClick" PreviewKeyDown="OnListKey" BorderThickness="1" BorderBrush="#33808080"
+                          RowHeight="34" Background="Transparent" RowBackground="Transparent" AlternatingRowBackground="Transparent">
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                            <Setter Property="VerticalContentAlignment" Value="Center" />
+                        </Style>
+                    </DataGrid.CellStyle>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Status}" Value="Overdue"><Setter Property="Background" Value="#26E5484D" /></DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="DueSoon"><Setter Property="Background" Value="#1FF59E0B" /></DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Done"><Setter Property="Opacity" Value="0.55" /></DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Status" Width="108" SortMemberPath="StatusOrder">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Background="{Binding StatusBrush}" CornerRadius="10" Padding="9,1" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding StatusText}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" SortMemberPath="Name" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="140" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTextColumn Header="Due" Binding="{Binding DueText}" Width="104" SortMemberPath="DueSort" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTextColumn Header="When" Binding="{Binding WhenText}" Width="110" SortMemberPath="DueSort" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="120" ElementStyle="{StaticResource CellText}" />
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Center" Background="Transparent" />
+
+                <!-- details of the chosen item -->
+                <Border x:Name="DetailsPane" Grid.Column="2" BorderThickness="1" BorderBrush="#33808080" CornerRadius="6" Padding="16,14">
+                    <Grid>
+                        <TextBlock x:Name="NoSelection" Text="Choose an item to see its details." Opacity="0.65" VerticalAlignment="Center" HorizontalAlignment="Center" TextWrapping="Wrap" />
+                        <ScrollViewer x:Name="DetailsScroll" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                            <StackPanel Margin="0,0,10,0">
+                                <TextBlock x:Name="DName" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Border x:Name="DChip" CornerRadius="10" Padding="9,1" VerticalAlignment="Center">
+                                        <TextBlock x:Name="DChipText" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+                                    </Border>
+                                    <TextBlock x:Name="DWhen" Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,4">
+                                    <Button Content="Edit..." Padding="12,4" Margin="0,0,6,0" Click="OnEdit" />
+                                    <Button x:Name="RenewButton" Content="Mark as Renewed..." Padding="12,4" Click="OnRenew" />
+                                </StackPanel>
+                                <Grid x:Name="Facts" Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="108" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                </Grid>
+                                <TextBlock Text="Files" FontWeight="SemiBold" Margin="0,16,0,6" />
+                                <ListBox x:Name="Files" MaxHeight="150" MouseDoubleClick="OnFileOpen" BorderThickness="1" BorderBrush="#33808080" Background="Transparent" />
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button Content="Attach..." Padding="10,3" Margin="0,0,6,0" Click="OnAttach" />
+                                    <Button Content="Open" Padding="10,3" Margin="0,0,6,0" Click="OnFileOpen" />
+                                    <Button Content="Take Off List" Padding="10,3" Click="OnFileDetach" ToolTip="The copy stays in the Documents folder" />
+                                </StackPanel>
+                                <TextBlock Text="History" FontWeight="SemiBold" Margin="0,16,0,6" />
+                                <ItemsControl x:Name="History">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,3" Opacity="0.85" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- shown when there is nothing yet -->
+                <Border x:Name="Empty" Grid.ColumnSpan="3" Visibility="Collapsed">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560">
+                        <Image Source="Assets/Duejoro.png" Width="112" Height="112" HorizontalAlignment="Center" Margin="0,0,0,14" RenderOptions.BitmapScalingMode="HighQuality" />
+                        <TextBlock Text="Duejoro" FontSize="40" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                        <TextBlock Text="Every date your business can't afford to miss." Opacity="0.75" HorizontalAlignment="Center" Margin="0,4,0,8" />
+                        <TextBlock Text="Licenses, permits, insurance, certifications, contracts, leases, subscriptions and warranties. Add them once; Duejoro shows what is overdue and what is coming up, on your own computer." Opacity="0.7" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,22" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button Content="Add your first item..." Padding="26,12" FontSize="16" Click="OnNew" />
+                            <Button Content="Import from a spreadsheet..." Padding="22,12" FontSize="16" Margin="12,0,0,0" Click="OnImport" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- status -->
+        <StatusBar x:Name="Status" Grid.Row="2">
+            <StatusBarItem><TextBlock x:Name="CountStatus" Text="" /></StatusBarItem>
+            <StatusBarItem><TextBlock x:Name="MessageStatus" Text="" /></StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right"><TextBlock x:Name="VersionStatus" Opacity="0.7" /></StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

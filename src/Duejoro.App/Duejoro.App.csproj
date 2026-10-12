@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- only for the notification-area icon; its other namespaces are kept out of the code so names stay unambiguous -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Duejoro.App</RootNamespace>
+    <AssemblyName>Duejoro</AssemblyName>
+    <ApplicationIcon>Assets\Duejoro.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- the Windows 11 look (it follows the person's light or dark setting) is still marked experimental by WPF -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Duejoro.Core\Duejoro.Core.csproj" />
+    <Resource Include="Assets\Duejoro.ico" />
+    <Resource Include="Assets\Duejoro.png" />
+  </ItemGroup>
+
+</Project>
