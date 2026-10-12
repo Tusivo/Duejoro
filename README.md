@@ -1,10 +1,16 @@
+<p align="center"><img src="src/Duejoro.App/Assets/Duejoro.png" alt="The Duejoro icon: a calendar page with a check mark on an orange tile" width="128" height="128"></p>
+
 # Duejoro
 
 **Free, open-source tracker for the renewals, licenses and deadlines your business cannot afford to miss.**
 
-[**Download Duejoro.exe**](https://github.com/Tusivo/Duejoro/releases/latest) · [Website](https://tusivo.com/apps/Duejoro/) · [Report a problem](https://github.com/Tusivo/Duejoro/issues) · [Support the project](https://buymeacoffee.com/tusivo)
+### [Download Duejoro for Windows](https://github.com/Tusivo/Duejoro/releases/latest)
 
-> **Status: 0.1.0-alpha.1.** Early and changing. Keep your own copy of anything important, and expect rough edges.
+On that page, download **Duejoro.exe** under **Assets** and double-click it. There is no installer. (Early previews are marked *Pre-release*; if the link above says there is no release, open the [releases page](https://github.com/Tusivo/Duejoro/releases) and choose the newest one.)
+
+[Website](https://tusivo.com/apps/Duejoro/) · [Report a problem](https://github.com/Tusivo/Duejoro/issues) · [Support the project](https://buymeacoffee.com/tusivo)
+
+> **Status: v0.1.0-alpha.1, an early preview.** Keep your own copy of anything important, and expect rough edges.
 
 Duejoro is one program file for Windows. There is nothing to install, no server, no account and no subscription. Put `Duejoro.exe` in a folder and run it.
 
