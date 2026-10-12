@@ -30,7 +30,7 @@ public sealed class Row
         StatusBrush = BrushFor(status);
         Name = item.Name; Category = item.Category; Owner = item.Owner;
         DueText = item.DueDate?.ToString("MMM d, yyyy", CultureInfo.CurrentCulture) ?? "";
-        WhenText = status == DueStatus.Done ? "" : DueMath.Describe(DueMath.DaysLeft(item, today));
+        WhenText = status == DueStatus.Done ? "" : DueMath.Describe(DueMath.DaysLeft(item, today)) + (DueMath.IsSnoozed(item, today) ? " (snoozed)" : "");
         DueSort = item.DueDate?.DayNumber ?? int.MaxValue;
     }
 
@@ -106,7 +106,7 @@ public partial class MainWindow : Window
         return StatusBox.SelectedIndex switch
         {
             0 => status != DueStatus.Done,
-            1 => status is DueStatus.Overdue or DueStatus.DueSoon,
+            1 => status is DueStatus.Overdue or DueStatus.DueSoon && !DueMath.IsSnoozed(o, Today),
             2 => status == DueStatus.Overdue,
             3 => status == DueStatus.DueSoon,
             4 => status == DueStatus.Upcoming,
@@ -120,7 +120,7 @@ public partial class MainWindow : Window
     {
         var today = Today;
         var all = store.Items;
-        var selectedId = (List.SelectedItem as Row)?.Id;
+        var selectedIds = List.SelectedItems.OfType<Row>().Select(r => r.Id).ToHashSet();
 
         // counts for the cards (always over everything that is active, whatever the filter)
         var active = all.Where(o => !o.Done).ToList();
@@ -155,8 +155,7 @@ public partial class MainWindow : Window
         FilterNote.Text = !empty && rows.Count != all.Count ? $"Showing {rows.Count} of {all.Count}" : "";
         CountStatus.Text = empty ? "" : $"{active.Count} active, {all.Count - active.Count} done";
 
-        if (selectedId is { } id && rows.FirstOrDefault(r => r.Id == id) is { } keep) List.SelectedItem = keep;
-        else if (rows.Count > 0 && List.SelectedItem is null) { /* leave nothing selected until the person chooses */ }
+        foreach (var r in rows.Where(r => selectedIds.Contains(r.Id))) List.SelectedItems.Add(r);
         ShowDetails();
         UndoItem.IsEnabled = store.CanUndo; RedoItem.IsEnabled = store.CanRedo;
     }
@@ -164,7 +163,7 @@ public partial class MainWindow : Window
     void AnnounceAtStart()
     {
         var today = Today;
-        var active = store.Items.Where(o => !o.Done).ToList();
+        var active = store.Items.Where(o => DueMath.NeedsAttention(o, today)).ToList();
         var over = active.Count(o => DueMath.StatusOf(o, today) == DueStatus.Overdue);
         var soon = active.Count(o => DueMath.StatusOf(o, today) == DueStatus.DueSoon);
         if (over + soon == 0) { MessageStatus.Text = store.Items.Count == 0 ? "" : "Nothing needs attention right now."; return; }
@@ -173,12 +172,27 @@ public partial class MainWindow : Window
 
     // ---- details ------------------------------------------------------------------------------------------------------
 
-    Row? Selected => List.SelectedItem as Row;
+    /// <summary>The chosen item, or null when none or several are chosen.</summary>
+    Row? Selected => List.SelectedItems.Count == 1 ? List.SelectedItems[0] as Row : null;
+
+    IEnumerable<Row> Chosen => List.SelectedItems.OfType<Row>();
+
+    /// <summary>Says why nothing happened when the action needs exactly one item.</summary>
+    bool NeedOne()
+    {
+        if (Selected is not null) return true;
+        MessageStatus.Text = List.SelectedItems.Count > 1 ? "Choose just one item for that." : "Choose an item in the list first.";
+        return false;
+    }
 
     void ShowDetails()
     {
         if (Selected is not { } row)
         {
+            var n = List.SelectedItems.Count;
+            NoSelection.Text = n > 1
+                ? $"{n} items chosen.\n\nMark as Renewed renews each by its own repeat, Put Away puts them all away, and Delete removes them. Each is one step you can undo."
+                : "Choose an item to see its details.";
             NoSelection.Visibility = Visibility.Visible; DetailsScroll.Visibility = Visibility.Collapsed;
             return;
         }
@@ -190,6 +204,8 @@ public partial class MainWindow : Window
         DWhen.Text = o.Done ? "Put away" : o.DueDate is { } d
             ? $"{d.ToString("dddd, MMMM d, yyyy", CultureInfo.CurrentCulture)} ({DueMath.Describe(days)})" : "No date";
         RenewButton.IsEnabled = !o.Done;
+        SnoozeButton.IsEnabled = !o.Done;
+        LinkButton.Visibility = o.RenewalLink.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         Facts.Children.Clear(); Facts.RowDefinitions.Clear();
         void Fact(string label, string value)
@@ -209,6 +225,8 @@ public partial class MainWindow : Window
         Fact("Flagged", o.DueDate is null ? "" : $"{o.RemindDaysBefore} days before");
         Fact("Comes round", o.RepeatUnit == RepeatUnit.None ? "" : DueMath.DescribeRepeat(o.RepeatUnit, o.RepeatEvery));
         Fact("Cost", o.Cost?.ToString("C2", CultureInfo.CurrentCulture) ?? "");
+        Fact("Contact", o.Contact);
+        Fact("Snoozed until", DueMath.IsSnoozed(o, today) ? o.SnoozedUntil!.Value.ToString("MMMM d, yyyy", CultureInfo.CurrentCulture) : "");
         Fact("Notes", o.Notes);
 
         Files.Items.Clear();
@@ -304,7 +322,7 @@ public partial class MainWindow : Window
 
     void OnEdit(object sender, RoutedEventArgs e)
     {
-        if (Selected is not { } row) { MessageStatus.Text = "Choose an item in the list first."; return; }
+        if (!NeedOne() || Selected is not { } row) return;
         var edited = EditWindow.Show(this, row.Item.Clone(), store.Items.Select(i => i.Category), isNew: false);
         if (edited is null) return;
         try { store.Update(edited); Select(edited.Id); MessageStatus.Text = "Saved."; }
@@ -313,7 +331,8 @@ public partial class MainWindow : Window
 
     void OnRenew(object sender, RoutedEventArgs e)
     {
-        if (Selected is not { } row) { MessageStatus.Text = "Choose an item in the list first."; return; }
+        if (List.SelectedItems.Count > 1) { RenewChosen(); return; }
+        if (!NeedOne() || Selected is not { } row) return;
         if (row.Item.Done) { MessageStatus.Text = "That item is put away. Bring it back first (Edit, Put Away as Done)."; return; }
         var answer = EditWindow.ShowRenew(this, row.Item, Today);
         if (answer is null) return;
@@ -328,7 +347,19 @@ public partial class MainWindow : Window
 
     void OnToggleDone(object sender, RoutedEventArgs e)
     {
-        if (Selected is not { } row) { MessageStatus.Text = "Choose an item in the list first."; return; }
+        if (List.SelectedItems.Count > 1)
+        {
+            var ids = Chosen.Select(r => r.Id).ToList();
+            var bringBack = Chosen.All(r => r.Item.Done);
+            try
+            {
+                var n = store.SetDoneMany(ids, !bringBack);
+                MessageStatus.Text = bringBack ? $"{n} item(s) are back on the list." : $"{n} item(s) put away as done. They show under Show, Done.";
+            }
+            catch (StoreException ex) { Fail(ex); }
+            return;
+        }
+        if (!NeedOne() || Selected is not { } row) return;
         try
         {
             store.SetDone(row.Id, !row.Item.Done);
@@ -339,10 +370,60 @@ public partial class MainWindow : Window
 
     void OnDelete(object sender, RoutedEventArgs e)
     {
-        if (Selected is not { } row) { MessageStatus.Text = "Choose an item in the list first."; return; }
+        if (List.SelectedItems.Count > 1)
+        {
+            var count = List.SelectedItems.Count;
+            if (!Dialogs.Confirm(this, "Delete Items", $"Delete these {count} items and their history?\n\nYou can bring them back right away with Undo (Ctrl+Z). Attached files stay in the Documents folder.")) return;
+            try { MessageStatus.Text = $"Deleted {store.RemoveMany(Chosen.Select(r => r.Id).ToList())} item(s). Press Ctrl+Z to bring them back."; }
+            catch (StoreException ex) { Fail(ex); }
+            return;
+        }
+        if (!NeedOne() || Selected is not { } row) return;
         if (!Dialogs.Confirm(this, "Delete Item", $"Delete \"{row.Name}\" and its history?\n\nYou can bring it back right away with Undo (Ctrl+Z). Attached files stay in the Documents folder.")) return;
         try { store.Remove(row.Id); MessageStatus.Text = $"Deleted \"{row.Name}\". Press Ctrl+Z to bring it back."; }
         catch (StoreException ex) { Fail(ex); }
+    }
+
+    void RenewChosen()
+    {
+        var chosen = Chosen.ToList();
+        var can = chosen.Count(r => !r.Item.Done && DueMath.NextDue(r.Item, Today) is not null);
+        if (can == 0)
+        {
+            Dialogs.Info(this, "Mark as Renewed", "None of the chosen items has both a date and a repeat, so there is nothing to move on. Renew them one at a time to give each a new date.");
+            return;
+        }
+        var skipped = chosen.Count - can;
+        var message = $"Renew {can} item(s), each moved on by its own repeat period?" +
+            (skipped > 0 ? $"\n\n{skipped} of the chosen items do not repeat, have no date or are put away, and will be left as they are." : "") +
+            "\n\nYou can undo this with Ctrl+Z.";
+        if (!Dialogs.Confirm(this, "Mark as Renewed", message)) return;
+        try { MessageStatus.Text = $"Renewed {store.RenewMany(chosen.Select(r => r.Id).ToList(), Today)} item(s)."; }
+        catch (StoreException ex) { Fail(ex); }
+    }
+
+    void OnSnooze(object sender, RoutedEventArgs e)
+    {
+        if (!NeedOne() || Selected is not { } row) return;
+        if (row.Item.Done) { MessageStatus.Text = "That item is put away, so there is nothing to snooze."; return; }
+        var answer = EditWindow.ShowSnooze(this, row.Item, Today);
+        if (answer.Cancelled) return;
+        try
+        {
+            store.Snooze(row.Id, answer.Until, Today);
+            Select(row.Id);
+            MessageStatus.Text = answer.Until is { } d ? $"Snoozed until {d.ToString("MMMM d, yyyy", CultureInfo.CurrentCulture)}." : "Snooze cleared.";
+        }
+        catch (StoreException ex) { Fail(ex); }
+    }
+
+    void OnOpenLink(object sender, RoutedEventArgs e)
+    {
+        if (!NeedOne() || Selected is not { } row) return;
+        if (Obligation.NormalizeLink(row.Item.RenewalLink) is not { Length: > 0 } url) { MessageStatus.Text = "That item has no renewal address. Add one with Edit."; return; }
+        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        { Dialogs.Info(this, "Duejoro", "Windows could not open that address: " + ex.Message, error: true); }
     }
 
     void OnUndo(object sender, RoutedEventArgs e)
@@ -361,7 +442,7 @@ public partial class MainWindow : Window
 
     void OnAttach(object sender, RoutedEventArgs e)
     {
-        if (Selected is not { } row) { MessageStatus.Text = "Choose an item in the list first."; return; }
+        if (!NeedOne() || Selected is not { } row) return;
         var d = new OpenFileDialog { Multiselect = true, Title = $"Attach files to \"{row.Name}\"" };
         if (d.ShowDialog(this) != true) return;
         try

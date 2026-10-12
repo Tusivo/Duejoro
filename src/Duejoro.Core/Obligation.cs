@@ -61,17 +61,44 @@ public sealed class Obligation
     /// <summary>What it costs each time (renewal fee, premium), if anything.</summary>
     public decimal? Cost { get; set; }
     public string Notes { get; set; } = "";
+    /// <summary>The web address where it is renewed (an agency or vendor portal). Only http and https addresses are kept.</summary>
+    public string RenewalLink { get; set; } = "";
+    /// <summary>Who to contact about it: a name, a phone number or an email address.</summary>
+    public string Contact { get; set; } = "";
+    /// <summary>While today is on or before this day it is not counted as needing attention. The real due date is untouched.</summary>
+    public DateOnly? SnoozedUntil { get; set; }
     public bool Done { get; set; }
     public DateTime Created { get; set; } = DateTime.Now;
     public DateTime Modified { get; set; } = DateTime.Now;
     public List<Attachment> Attachments { get; set; } = [];
     public List<HistoryEntry> History { get; set; } = [];
 
+    /// <summary>
+    /// Makes a typed address usable: "example.com/renew" becomes "https://example.com/renew". Returns an empty string for nothing, and null when the text
+    /// is not a web (http or https) address, so a link can never start anything but a web page.
+    /// </summary>
+    public static string? NormalizeLink(string? text)
+    {
+        var t = (text ?? "").Trim();
+        if (t.Length == 0) return "";
+        if (!t.Contains("://", StringComparison.Ordinal))
+        {
+            // "mailto:x", "javascript:x" and the like are some other kind of address, not a web page missing its "https://"
+            var colon = t.IndexOf(':');
+            var slash = t.IndexOf('/');
+            if (colon > 0 && (slash < 0 || colon < slash) && !int.TryParse(t[(colon + 1)..].Split('/', '?', '#')[0], out _)) return null;
+            t = "https://" + t;
+        }
+        return Uri.TryCreate(t, UriKind.Absolute, out var u) && (u.Scheme == Uri.UriSchemeHttps || u.Scheme == Uri.UriSchemeHttp)
+            && u.UserInfo.Length == 0 && u.Host.Contains('.') ? t : null;
+    }
+
     /// <summary>A copy that can be edited without touching the original.</summary>
     public Obligation Clone() => new()
     {
         Id = Id, Name = Name, Category = Category, Owner = Owner, Issuer = Issuer, Reference = Reference, DueDate = DueDate,
         RemindDaysBefore = RemindDaysBefore, RepeatUnit = RepeatUnit, RepeatEvery = RepeatEvery, Cost = Cost, Notes = Notes, Done = Done,
+        RenewalLink = RenewalLink, Contact = Contact, SnoozedUntil = SnoozedUntil,
         Created = Created, Modified = Modified,
         Attachments = Attachments.Select(a => new Attachment { Id = a.Id, FileName = a.FileName, StoredPath = a.StoredPath, Size = a.Size, Added = a.Added }).ToList(),
         History = History.Select(h => new HistoryEntry { When = h.When, What = h.What }).ToList(),

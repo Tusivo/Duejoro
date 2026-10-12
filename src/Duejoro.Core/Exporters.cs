@@ -11,7 +11,7 @@ public sealed record ImportResult(IReadOnlyList<Obligation> Items, IReadOnlyList
 public static class Exporters
 {
     static readonly string[] Header =
-        ["Name", "Category", "Owner", "Issuer", "Reference", "Due date", "Status", "Days left", "Remind days before", "Repeats", "Cost", "Done", "Notes"];
+        ["Name", "Category", "Owner", "Issuer", "Reference", "Due date", "Status", "Days left", "Remind days before", "Repeats", "Cost", "Done", "Notes", "Renewal link", "Contact"];
 
     static string Q(string s) => s.IndexOfAny([',', '"', '\n', '\r']) >= 0 ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
 
@@ -37,7 +37,7 @@ public static class Exporters
                 o.RemindDaysBefore.ToString(CultureInfo.InvariantCulture),
                 Q(DueMath.DescribeRepeat(o.RepeatUnit, o.RepeatEvery)),
                 o.Cost?.ToString("0.##", CultureInfo.InvariantCulture) ?? "",
-                o.Done ? "yes" : "no", Q(o.Notes),
+                o.Done ? "yes" : "no", Q(o.Notes), Q(o.RenewalLink), Q(o.Contact),
             }).Append("\r\n");
         }
         return sb.ToString();
@@ -129,7 +129,14 @@ public static class Exporters
                 Issuer = Pick(columns, row, "Issuer", "Issued by", "Vendor", "Agency", "Provider", "Authority") ?? "",
                 Reference = Pick(columns, row, "Reference", "Number", "Policy number", "License number", "Account", "ID") ?? "",
                 Notes = Pick(columns, row, "Notes", "Note", "Comments", "Remarks") ?? "",
+                Contact = Pick(columns, row, "Contact", "Contact person", "Phone", "Email", "Telephone") ?? "",
             };
+            var linkText = Pick(columns, row, "Renewal link", "Link", "URL", "Website", "Web address", "Renewal URL", "Portal");
+            if (linkText is not null)
+            {
+                if (Obligation.NormalizeLink(linkText) is { Length: > 0 } link) o.RenewalLink = link;
+                else warnings.Add($"Row {line}: \"{linkText}\" is not a web address, so \"{name}\" has no renewal link.");
+            }
             var dateText = Pick(columns, row, "Due date", "Due", "Expiry", "Expiration", "Expires", "Expiry date", "Expiration date", "Renewal date", "Renews", "Date", "End date");
             if (dateText is not null)
             {
@@ -203,6 +210,8 @@ public static class Exporters
             var d = o.DueDate!.Value;
             var description = new List<string>();
             if (o.Category.Length > 0) description.Add("Category: " + o.Category);
+            if (o.RenewalLink.Length > 0) description.Add("Renew at: " + o.RenewalLink);
+            if (o.Contact.Length > 0) description.Add("Contact: " + o.Contact);
             if (o.Owner.Length > 0) description.Add("Owner: " + o.Owner);
             if (o.Issuer.Length > 0) description.Add("Issued by: " + o.Issuer);
             if (o.Reference.Length > 0) description.Add("Reference: " + o.Reference);

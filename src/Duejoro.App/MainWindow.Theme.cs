@@ -46,6 +46,7 @@ public partial class MainWindow
         finally { updatingUi = false; }
 
         var night = name == "night";
+        Dialogs.Night = night;
         Resources["MenuPopupBrush"] = night ? B("#0B253A") : name == "light" ? B("#FFFFFF") : B("#2B2B2B");
         void Paint(Control c, Brush? bg, Brush? fg = null)
         {

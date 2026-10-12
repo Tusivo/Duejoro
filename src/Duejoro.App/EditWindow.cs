@@ -20,6 +20,7 @@ static class EditWindow
             Title = isNew ? "New Item" : "Edit Item", Width = 700, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize,
             Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
         };
+        Dialogs.Style(w);
         var panel = new StackPanel { Margin = new Thickness(22, 18, 22, 18) };
 
         TextBox Field(string label, string value, double width = double.NaN)
@@ -43,18 +44,24 @@ static class EditWindow
         var row = new Grid { Margin = new Thickness(0, 0, 0, 0) };
         row.ColumnDefinitions.Add(new ColumnDefinition()); row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) }); row.ColumnDefinitions.Add(new ColumnDefinition());
         panel.Children.Add(row);
-        TextBox Half(string label, string value, int col)
+        TextBox Half(string label, string value, int col, Grid? into = null)
         {
             var host = new StackPanel();
             host.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, 8, 0, 3) });
             var box = new TextBox { Text = value };
             host.Children.Add(box);
-            Grid.SetColumn(host, col); row.Children.Add(host);
+            Grid.SetColumn(host, col); (into ?? row).Children.Add(host);
             return box;
         }
         var owner1 = Half("Who is responsible", source.Owner, 0);
         var issuer = Half("Issued by or with (agency, insurer, vendor)", source.Issuer, 2);
         var reference = Field("License, policy or account number", source.Reference);
+
+        var row2 = new Grid();
+        row2.ColumnDefinitions.Add(new ColumnDefinition()); row2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) }); row2.ColumnDefinitions.Add(new ColumnDefinition());
+        panel.Children.Add(row2);
+        var link = Half("Where it is renewed (web address, optional)", source.RenewalLink, 0, row2);
+        var contact = Half("Who to contact (name, phone or email, optional)", source.Contact, 2, row2);
 
         // the date
         panel.Children.Add(new TextBlock { Text = "Due, expires or renews on", Margin = new Thickness(0, 12, 0, 3) });
@@ -97,6 +104,8 @@ static class EditWindow
             var ev = 1;
             if (repeat.SelectedIndex > 0 && (!int.TryParse(every.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out ev) || ev < 1 || ev > 999))
             { Dialogs.Info(w, "Duejoro", "Type how often it comes round, such as 1 or 2."); every.Focus(); return false; }
+            if (Obligation.NormalizeLink(link.Text) is not { } normalizedLink)
+            { Dialogs.Info(w, "Duejoro", "The renewal address must be a web address, such as https://example.com/renew. Leave it empty if there is none."); link.Focus(); return false; }
             decimal? c = null;
             if (cost.Text.Trim().Length > 0)
             {
@@ -111,6 +120,7 @@ static class EditWindow
             o.RemindDaysBefore = rd;
             o.RepeatUnit = (RepeatUnit)repeat.SelectedIndex; o.RepeatEvery = repeat.SelectedIndex > 0 ? ev : 1;
             o.Cost = c; o.Notes = notes.Text.Trim();
+            o.RenewalLink = normalizedLink; o.Contact = contact.Text.Trim();
             result = o;
             return true;
         });
@@ -118,6 +128,58 @@ static class EditWindow
         w.Content = panel;
         w.Loaded += (_, _) => name.Focus();
         return w.ShowDialog() == true ? result : null;
+    }
+
+    /// <summary>Asks how long to stop flagging an item. Returns null if cancelled; otherwise the day to stay quiet until, or null inside to clear a snooze.</summary>
+    public static (DateOnly? Until, bool Cancelled) ShowSnooze(Window owner, Obligation o, DateOnly today)
+    {
+        var w = Dialogs.Make(owner, "Snooze", 500);
+        var panel = new StackPanel { Margin = new Thickness(22, 18, 22, 18) };
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"Stop flagging \"{o.Name}\" until:", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10),
+        });
+        var choices = new (string Label, DateOnly Day)[]
+        {
+            ("Tomorrow", today.AddDays(1)), ("In 3 days", today.AddDays(3)), ("In a week", today.AddDays(7)),
+            ("In 2 weeks", today.AddDays(14)), ("In a month", today.AddMonths(1)),
+        };
+        var pick = new ComboBox { Width = 220, HorizontalAlignment = HorizontalAlignment.Left };
+        foreach (var c in choices) pick.Items.Add($"{c.Label}  ({c.Day.ToString("MMM d", CultureInfo.CurrentCulture)})");
+        pick.Items.Add("A day I choose...");
+        pick.SelectedIndex = 2;
+        panel.Children.Add(pick);
+        var date = new DatePicker { SelectedDate = today.AddDays(7).ToDateTime(TimeOnly.MinValue), Width = 200, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0), IsEnabled = false };
+        pick.SelectionChanged += (_, _) => date.IsEnabled = pick.SelectedIndex == choices.Length;
+        panel.Children.Add(date);
+        panel.Children.Add(new TextBlock
+        {
+            Text = "The due date does not change. The item stays in the list and keeps its status; it is only left out of the \"needs attention\" count, the start-up message and the tray reminders.",
+            Opacity = 0.75, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0),
+        });
+        if (o.SnoozedUntil is { } current && current >= today)
+            panel.Children.Add(new TextBlock { Text = $"It is snoozed until {current.ToString("MMMM d, yyyy", CultureInfo.CurrentCulture)}.", Margin = new Thickness(0, 8, 0, 0) });
+
+        (DateOnly? Until, bool Cancelled) result = (null, true);
+        var buttons = Dialogs.Buttons(w, "Snooze", true, () =>
+        {
+            DateOnly day;
+            if (pick.SelectedIndex < choices.Length) day = choices[pick.SelectedIndex].Day;
+            else if (date.SelectedDate is { } picked) day = DateOnly.FromDateTime(picked);
+            else { Dialogs.Info(w, "Duejoro", "Choose the day."); return false; }
+            if (day <= today || day > today.AddDays(366)) { Dialogs.Info(w, "Duejoro", "Choose a day after today and within a year."); return false; }
+            result = (day, false);
+            return true;
+        });
+        if (o.SnoozedUntil is { } cur && cur >= today)
+        {
+            var clear = new Button { Content = "Stop Snoozing", Padding = new Thickness(18, 6, 18, 6), Margin = new Thickness(0, 0, 8, 0) };
+            clear.Click += (_, _) => { result = (null, false); w.DialogResult = true; };
+            buttons.Children.Insert(0, clear);
+        }
+        panel.Children.Add(buttons);
+        w.Content = panel;
+        return w.ShowDialog() == true ? result : (null, true);
     }
 
     /// <summary>Asks for the new date when something is renewed. Returns (date, note, putAwayInstead) or null if cancelled.</summary>

@@ -176,6 +176,7 @@ public sealed class ObligationStore
         Change(() =>
         {
             if (next is { } d) o.DueDate = d; else o.Done = true;
+            o.SnoozedUntil = null;
             o.Modified = now();
             var text = next is { } nd
                 ? $"Renewed{(was is { } w ? $" (was due {w:yyyy-MM-dd})" : "")}; next due {nd:yyyy-MM-dd}"
@@ -194,6 +195,68 @@ public sealed class ObligationStore
             o.Done = done; o.Modified = now();
             o.History.Add(new HistoryEntry { When = now(), What = done ? "Put away as done" : "Brought back" });
         });
+    }
+
+    /// <summary>Stops an item being flagged until the end of <paramref name="until"/> (or clears the snooze when it is null). The due date stays as it is.</summary>
+    public void Snooze(Guid id, DateOnly? until, DateOnly today)
+    {
+        var o = Find(id) ?? throw new StoreException("That record no longer exists.");
+        if (until is { } u && (u <= today || u > today.AddDays(366))) throw new StoreException("Choose a day after today and within a year.");
+        if (o.SnoozedUntil == until) return;
+        Change(() =>
+        {
+            o.SnoozedUntil = until; o.Modified = now();
+            o.History.Add(new HistoryEntry { When = now(), What = until is { } d ? $"Snoozed until {d:yyyy-MM-dd}" : "Snooze cleared" });
+        });
+    }
+
+    // ---- several at once (one undo step each) ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Renews every listed item that has a date and a repeat, each by its own repeat period. Items that do not repeat (or have no date) are left alone
+    /// rather than guessed at. Returns how many were renewed.
+    /// </summary>
+    public int RenewMany(IEnumerable<Guid> ids, DateOnly today)
+    {
+        var targets = ids.Distinct().Select(Find).OfType<Obligation>().Where(o => !o.Done && DueMath.NextDue(o, today) is not null).ToList();
+        if (targets.Count == 0) return 0;
+        Change(() =>
+        {
+            foreach (var o in targets)
+            {
+                var was = o.DueDate;
+                var next = DueMath.NextDue(o, today)!.Value;
+                o.DueDate = next; o.SnoozedUntil = null; o.Modified = now();
+                o.History.Add(new HistoryEntry { When = now(), What = $"Renewed{(was is { } w ? $" (was due {w:yyyy-MM-dd})" : "")}; next due {next:yyyy-MM-dd}" });
+            }
+        });
+        return targets.Count;
+    }
+
+    /// <summary>Puts the listed items away as done (or brings them back). Returns how many changed.</summary>
+    public int SetDoneMany(IEnumerable<Guid> ids, bool done)
+    {
+        var targets = ids.Distinct().Select(Find).OfType<Obligation>().Where(o => o.Done != done).ToList();
+        if (targets.Count == 0) return 0;
+        Change(() =>
+        {
+            foreach (var o in targets)
+            {
+                o.Done = done; o.Modified = now();
+                o.History.Add(new HistoryEntry { When = now(), What = done ? "Put away as done" : "Brought back" });
+            }
+        });
+        return targets.Count;
+    }
+
+    /// <summary>Deletes the listed items (attached files stay in the Documents folder). Returns how many were deleted.</summary>
+    public int RemoveMany(IEnumerable<Guid> ids)
+    {
+        var set = ids.ToHashSet();
+        var count = items.Count(i => set.Contains(i.Id));
+        if (count == 0) return 0;
+        Change(() => items.RemoveAll(i => set.Contains(i.Id)));
+        return count;
     }
 
     // ---- attached files -----------------------------------------------------------------------------------------------
@@ -309,6 +372,8 @@ public sealed class ObligationStore
         if (string.IsNullOrWhiteSpace(o.Name)) throw new StoreException("Give it a name.");
         o.Name = o.Name.Trim();
         o.Category = o.Category.Trim(); o.Owner = o.Owner.Trim(); o.Issuer = o.Issuer.Trim(); o.Reference = o.Reference.Trim();
+        o.Contact = (o.Contact ?? "").Trim();
+        o.RenewalLink = Obligation.NormalizeLink(o.RenewalLink) ?? throw new StoreException("The renewal address must be a web address, such as https://example.com/renew.");
         o.RemindDaysBefore = Math.Clamp(o.RemindDaysBefore, 0, DueMath.MaxRemindDays);
         o.RepeatEvery = Math.Clamp(o.RepeatEvery, 1, 999);
         if (o.Cost is < 0) throw new StoreException("A cost cannot be negative.");

@@ -115,6 +115,8 @@
                         <MenuItem Header="_Edit Item..." InputGestureText="Enter" Click="OnEdit" />
                         <MenuItem Header="Mark as _Renewed..." Click="OnRenew" />
                         <MenuItem Header="Put Away as _Done" Click="OnToggleDone" />
+                        <MenuItem Header="_Snooze..." Click="OnSnooze" />
+                        <MenuItem Header="Open Renewal _Page" Click="OnOpenLink" />
                         <MenuItem Header="_Attach a File..." Click="OnAttach" />
                         <Separator />
                         <MenuItem Header="_Delete Item" InputGestureText="Delete" Click="OnDelete" />
@@ -146,6 +148,7 @@
                         <Button Style="{StaticResource Tb}" Content="{local:Icon Edit}" Click="OnEdit" ToolTip="Edit the chosen item" />
                         <Button Style="{StaticResource Tb}" Content="{local:Icon Renew}" Click="OnRenew" ToolTip="Mark the chosen item as renewed" />
                         <Button Style="{StaticResource Tb}" Content="{local:Icon Check}" Click="OnToggleDone" ToolTip="Put the chosen item away as done (or bring it back)" />
+                        <Button Style="{StaticResource Tb}" Content="{local:Icon Bell}" Click="OnSnooze" ToolTip="Snooze: stop flagging the chosen item for a while" />
                         <Button Style="{StaticResource Tb}" Content="{local:Icon Attach}" Click="OnAttach" ToolTip="Attach a file (a scan of the license, the policy, the contract)" />
                         <Button Style="{StaticResource Tb}" Content="{local:Icon Delete}" Click="OnDelete" ToolTip="Delete the chosen item" />
                         <Separator />
@@ -211,7 +214,7 @@
                 <TextBlock Text="Category" VerticalAlignment="Center" Margin="18,0,8,0" Opacity="0.8" />
                 <ComboBox x:Name="CategoryBox" Width="190" SelectionChanged="OnFilterChanged" />
                 <TextBlock Text="Show" VerticalAlignment="Center" Margin="18,0,8,0" Opacity="0.8" />
-                <ComboBox x:Name="StatusBox" Width="190" SelectionChanged="OnFilterChanged" />
+                <ComboBox x:Name="StatusBox" Width="285" SelectionChanged="OnFilterChanged" />
                 <TextBlock x:Name="FilterNote" VerticalAlignment="Center" Margin="18,0,0,0" Opacity="0.7" />
             </StackPanel>
 
@@ -223,7 +226,7 @@
                     <ColumnDefinition Width="400" MinWidth="280" />
                 </Grid.ColumnDefinitions>
 
-                <DataGrid x:Name="List" Grid.Column="0" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionUnit="FullRow"
+                <DataGrid x:Name="List" Grid.Column="0" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended" SelectionUnit="FullRow"
                           HeadersVisibility="Column" GridLinesVisibility="Horizontal" CanUserAddRows="False" CanUserResizeRows="False"
                           SelectionChanged="OnListSelected" MouseDoubleClick="OnListDoubleClick" PreviewKeyDown="OnListKey" BorderThickness="1" BorderBrush="#33808080"
                           RowHeight="34" Background="Transparent" RowBackground="Transparent" AlternatingRowBackground="Transparent">
@@ -252,10 +255,10 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" SortMemberPath="Name" ElementStyle="{StaticResource CellText}" />
-                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="140" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="140" SortMemberPath="Category" ElementStyle="{StaticResource CellText}" />
                         <DataGridTextColumn Header="Due" Binding="{Binding DueText}" Width="104" SortMemberPath="DueSort" ElementStyle="{StaticResource CellText}" />
-                        <DataGridTextColumn Header="When" Binding="{Binding WhenText}" Width="110" SortMemberPath="DueSort" ElementStyle="{StaticResource CellText}" />
-                        <DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="120" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTextColumn Header="When" Binding="{Binding WhenText}" Width="150" SortMemberPath="DueSort" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="120" SortMemberPath="Owner" ElementStyle="{StaticResource CellText}" />
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -268,16 +271,16 @@
                         <ScrollViewer x:Name="DetailsScroll" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
                             <StackPanel Margin="0,0,10,0">
                                 <TextBlock x:Name="DName" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                    <Border x:Name="DChip" CornerRadius="10" Padding="9,1" VerticalAlignment="Center">
-                                        <TextBlock x:Name="DChipText" Foreground="White" FontSize="12" FontWeight="SemiBold" />
-                                    </Border>
-                                    <TextBlock x:Name="DWhen" Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" />
-                                </StackPanel>
+                                <Border x:Name="DChip" CornerRadius="10" Padding="9,1" Margin="0,8,0,0" HorizontalAlignment="Left">
+                                    <TextBlock x:Name="DChipText" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+                                </Border>
+                                <TextBlock x:Name="DWhen" Margin="0,6,0,0" TextWrapping="Wrap" />
                                 <StackPanel Orientation="Horizontal" Margin="0,12,0,4">
                                     <Button Content="Edit..." Padding="12,4" Margin="0,0,6,0" Click="OnEdit" />
-                                    <Button x:Name="RenewButton" Content="Mark as Renewed..." Padding="12,4" Click="OnRenew" />
+                                    <Button x:Name="RenewButton" Content="Mark as Renewed..." Padding="12,4" Margin="0,0,6,0" Click="OnRenew" />
+                                    <Button x:Name="SnoozeButton" Content="Snooze..." Padding="12,4" Click="OnSnooze" />
                                 </StackPanel>
+                                <Button x:Name="LinkButton" Content="Open Renewal Page" Padding="12,4" Margin="0,4,0,0" HorizontalAlignment="Left" Click="OnOpenLink" Visibility="Collapsed" />
                                 <Grid x:Name="Facts" Margin="0,10,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="108" />

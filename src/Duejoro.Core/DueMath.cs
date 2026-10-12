@@ -15,6 +15,13 @@ public static class DueMath
         return due.DayNumber - today.DayNumber <= Math.Clamp(o.RemindDaysBefore, 0, MaxRemindDays) ? DueStatus.DueSoon : DueStatus.Upcoming;
     }
 
+    /// <summary>True while a snooze is in force (the item is put out of the reminders until the end of that day).</summary>
+    public static bool IsSnoozed(Obligation o, DateOnly today) => !o.Done && o.SnoozedUntil is { } s && s >= today;
+
+    /// <summary>Overdue or due soon, and not snoozed: what the start-up message and the tray reminders speak of.</summary>
+    public static bool NeedsAttention(Obligation o, DateOnly today) =>
+        StatusOf(o, today) is DueStatus.Overdue or DueStatus.DueSoon && !IsSnoozed(o, today);
+
     /// <summary>Days from today to the date: negative when it has passed. Null when there is no date.</summary>
     public static int? DaysLeft(Obligation o, DateOnly today) => o.DueDate is { } d ? d.DayNumber - today.DayNumber : null;
 

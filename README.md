@@ -10,7 +10,7 @@ On that page, download **Duejoro.exe** under **Assets** and double-click it. The
 
 [Website](https://tusivo.com/apps/Duejoro/) · [Report a problem](https://github.com/Tusivo/Duejoro/issues) · [Support the project](https://buymeacoffee.com/tusivo)
 
-> **Status: v0.1.0-alpha.1, an early preview.** Keep your own copy of anything important, and expect rough edges.
+> **Status: v0.1.0-alpha.2, an early preview.** Keep your own copy of anything important, and expect rough edges.
 
 ![Duejoro's main window: cards for overdue, due soon and upcoming items, a list with colored status labels, and the selected item's details](docs/screenshots/overview-light.png)
 *Everything that expires or falls due, in one list, with what needs attention counted at the top. (Light theme.)*
@@ -28,7 +28,9 @@ Keep one list of everything that expires, renews or falls due: business licenses
 
 - **See what needs attention.** Summary cards show how many items are overdue, due soon and coming up, with the yearly cost of what is active.
 - **Renew in one step.** Mark an item renewed and Duejoro moves it to its next date, counting on from the old one. Weekly, monthly, yearly and custom repeats are supported, with sensible handling of month ends.
-- **Per-item lead time.** Each item has its own "remind me this many days ahead".
+- **Per-item lead time.** Each item has its own "remind me this many days ahead", and you can **snooze** an item for a few days without changing its due date.
+- **Renewal link and contact.** Keep the web address of the renewal page and who to call or write to; one click opens the page.
+- **Several at once.** Choose a group of items to renew, put away or delete them together, and click a column heading to sort.
 - **Keep the paperwork with it.** Attach the scan or PDF of a license or policy; Duejoro keeps a copy beside your records.
 - **History.** Every item keeps a short log of what was changed and when it was renewed.
 - **Undo and redo** for every change, including imports.

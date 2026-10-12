@@ -1,10 +1,10 @@
 <Project>
   <PropertyGroup>
     <!-- One version for the whole solution. Bump it here (and the README status line) for each release. -->
-    <Version>0.1.0-alpha.1</Version>
+    <Version>0.1.0-alpha.2</Version>
     <AssemblyVersion>0.1.0.0</AssemblyVersion>
-    <FileVersion>0.1.0.1</FileVersion>
-    <InformationalVersion>0.1.0-alpha.1</InformationalVersion>
+    <FileVersion>0.1.0.2</FileVersion>
+    <InformationalVersion>0.1.0-alpha.2</InformationalVersion>
 
     <Product>Duejoro</Product>
     <Authors>Tusivo</Authors>

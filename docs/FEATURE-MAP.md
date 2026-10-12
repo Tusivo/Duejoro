@@ -10,6 +10,8 @@ Status: **done** in 0.1.0-alpha.1, **next** planned, **later** ideas (not promis
 | Repeat every N days / weeks / months / years | done |
 | Renew (moves to next date, logs it) | done |
 | Mark done / reopen | done |
+| Renewal web address (opens in the browser; web addresses only) and a contact | done |
+| Snooze (leaves it out of the needs-attention count and reminders until a day) | done |
 | Attach files (copied beside the records, never deleted by the app) | done |
 | Per-item history | done |
 | Undo / redo (50 steps) | done |
@@ -19,6 +21,7 @@ Status: **done** in 0.1.0-alpha.1, **next** planned, **later** ideas (not promis
 | Feature | Status |
 |---|---|
 | Table with status chips and tinted rows | done |
+| Sort by any column; choose several rows and renew, put away or delete them together | done |
 | Summary cards: Overdue, Due soon, Upcoming, All active, yearly cost | done |
 | Find, category filter, status filter | done |
 | Details pane | done |

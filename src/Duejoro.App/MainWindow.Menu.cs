@@ -14,7 +14,7 @@ public partial class MainWindow
     static void OpenUrl(string url)
     {
         try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
-        catch (Exception) { MessageBox.Show("Windows did not open the link. The address is " + url, AppInfo.Name); }
+        catch (Exception) { Dialogs.Info(null, AppInfo.Name, "Windows did not open the link. The address is " + url); }
     }
 
     void OnReportProblem(object sender, RoutedEventArgs e) => OpenUrl(AppInfo.Repository + "/issues/new/choose");
@@ -34,6 +34,7 @@ public partial class MainWindow
             Title = "About Duejoro", Width = 720, Height = 560, MinWidth = 560, MinHeight = 400, Owner = this,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
         };
+        Dialogs.Style(w);
         var dock = new DockPanel { Margin = new Thickness(26, 22, 26, 18) };
 
         var head = new Grid { Margin = new Thickness(0, 0, 0, 14) };

@@ -20,6 +20,7 @@ public partial class MainWindow
             Title = "Keyboard Shortcuts", Width = 560, Height = 440, MinWidth = 420, MinHeight = 300, Owner = this,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
         };
+        Dialogs.Style(w);
         var dock = new DockPanel { Margin = new Thickness(24, 20, 24, 16) };
         var close = new Button { Content = "Close", IsDefault = true, IsCancel = true, Padding = new Thickness(18, 5, 18, 5), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
         DockPanel.SetDock(close, Dock.Bottom); dock.Children.Add(close);

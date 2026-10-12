@@ -1,12 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace Duejoro.App;
 
 /// <summary>Small windows built in code: a message, a question, a line of text to type.</summary>
 public static class Dialogs
 {
+    static readonly Brush NightBg = Frozen("#011627"), NightInk = Frozen("#D6DEEB");
+
+    static Brush Frozen(string hex) { var b = (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!; b.Freeze(); return b; }
+
+    /// <summary>True while the Night theme is chosen; windows opened from then on take its colors, as the main window does.</summary>
+    public static bool Night { get; set; }
+
+    /// <summary>Gives a window the colors of the chosen theme (Light and Dark come from the application's theme; Night is painted here).</summary>
+    public static Window Style(Window w)
+    {
+        if (Night) { w.Background = NightBg; w.Foreground = NightInk; }
+        return w;
+    }
+
     public static Window Make(Window? owner, string title, double width = 460)
     {
         var w = new Window
@@ -16,7 +31,7 @@ public static class Dialogs
             ShowInTaskbar = false,
         };
         if (owner is not null) w.Owner = owner;
-        return w;
+        return Style(w);
     }
 
     public static StackPanel Buttons(Window w, string ok, bool cancel, Func<bool>? onOk = null)
@@ -30,11 +45,22 @@ public static class Dialogs
         return row;
     }
 
+    // our own message windows rather than the system message box, so they follow the chosen theme
+    static bool Message(Window? owner, string title, string message, bool cancel)
+    {
+        var w = Make(owner, title, 520);
+        var panel = new StackPanel { Margin = new Thickness(22, 20, 22, 18) };
+        panel.Children.Add(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(Buttons(w, "OK", cancel));
+        w.Content = panel;
+        return w.ShowDialog() == true;
+    }
+
     public static void Info(Window? owner, string title, string message, bool error = false) =>
-        MessageBox.Show(owner, message, title, MessageBoxButton.OK, error ? MessageBoxImage.Warning : MessageBoxImage.Information);
+        Message(owner, title, message, cancel: false);
 
     public static bool Confirm(Window? owner, string title, string message) =>
-        MessageBox.Show(owner, message, title, MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
+        Message(owner, title, message, cancel: true);
 
     public static string? Ask(Window? owner, string title, string message, string initial = "", bool multiline = false)
     {

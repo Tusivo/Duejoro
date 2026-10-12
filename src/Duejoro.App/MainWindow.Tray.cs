@@ -99,7 +99,7 @@ public partial class MainWindow
     {
         if (tray is null || IsVisible && WindowState != WindowState.Minimized) return;
         var today = Today;
-        var active = store.Items.Where(o => !o.Done).ToList();
+        var active = store.Items.Where(o => DueMath.NeedsAttention(o, today)).ToList();
         var over = active.Count(o => DueMath.StatusOf(o, today) == DueStatus.Overdue);
         var soon = active.Count(o => DueMath.StatusOf(o, today) == DueStatus.DueSoon);
         if (over + soon == 0) return;
